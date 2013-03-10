@@ -60,9 +60,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.awt.font.TextAttribute;
-import java.io.*;
-import java.net.*;
-import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.*;
 import javax.swing.*;
@@ -99,7 +96,6 @@ class MainFrame extends JFrame implements WindowListener, ActionListener,
     ThreadSafeLogger tsLog;
     Help help;
     About about;
-    WAVFile wavFile;
 
     SwingWorker workerThread;
 
@@ -338,10 +334,10 @@ public void actionPerformed(ActionEvent e)
 
     if ("Display About".equals(e.getActionCommand())) {displayAbout();}
 
-    if ("View WAV Audio File".equals(e.getActionCommand())) {displayWAVFile();}
+    if ("New File".equals(e.getActionCommand())) {doSomething1();}
 
-    if ("Create Binaural WAV Audio File".equals(e.getActionCommand())) {
-        createBinauralWAVFile();
+    if ("Open File".equals(e.getActionCommand())) {
+        doSomething2();
     }
 
 }//end of MainFrame::actionPerformed
@@ -422,85 +418,26 @@ private void displayAbout()
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::displayWAVFile
-//
-// Allows the user to select a WAV file which is then partially displayed in
-// the log window.
-//
-// All of the control and format data is displayed and a portion of the sound
-// data is displayed.
+// MainFrame::doSomething1
 //
 
-private void displayWAVFile()
+private void doSomething1()
 {
 
-    int returnVal = fileChooser.showOpenDialog(this);
 
-    if (returnVal == JFileChooser.APPROVE_OPTION) {
-        File file = fileChooser.getSelectedFile();
-        tsLog.appendLine("Opening: " + file.getName() + ".");
-        tsLog.appendLine("");
-        wavFile = new WAVFile(
-                        file.getName(), tsLog, guiUpdater, progressLabel);
-        wavFile.init();
-        wavFile.loadFile();
-
-    }
-    else {
-        tsLog.appendLine("Open command cancelled by user.");
-    }
-
-}//end of MainFrame::displayWAVFile
+}//end of MainFrame::doSomething1
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::createBinauralWAVFile
+// MainFrame::doSomethingInWorkerThread
 //
-// Allows the user to select a text configuration file which is then used to
-// generate a custom binaural WAV audio file.
-//
-// The new file will have the same name as the configuration file but with a
-// .wav extension.
-//
-
-private void createBinauralWAVFile()
-{
-
-    int returnVal = fileChooser.showOpenDialog(this);
-
-    if (returnVal == JFileChooser.APPROVE_OPTION) {
-        File file = fileChooser.getSelectedFile();
-        tsLog.appendLine(
-                    "Opening configuration file: " + file.getName() + ".");
-        tsLog.appendLine(
-                    "Creating Binaural WAV file: " + file.getName() + ".");
-        tsLog.appendLine("");
-
-        //create the audio file waveform data
-        createBinauralWAVFileInWorkerThread(file.getPath());
-
-        //start the thread
-        workerThread.execute();
-
-    }
-    else {
-        tsLog.appendLine("Open command cancelled by user.");
-    }
-
-}//end of MainFrame::createBinauralWAVFile
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::createBinauralWAVFileInWorkerThread
-//
-// Starts a worker thread to create a binaural wav file. The worker thread is
-// used so the work is done in the background and the GUI can continue to
-// function and display progress messages.
-//
-// See createBinauralWAVFile for details
+// Does nothing right now -- modify it to call a function which takes a long
+// time to finish. It will be run in a background thread so the GUI is still
+// responsive.
+// -- CHANGE THE NAME TO REFLECT THE ACTION BEING DONE --
 //
 
-private void createBinauralWAVFileInWorkerThread(final String pFilename)
+private void doSomethingInWorkerThread()
 {
 
     //define and instantiate a worker thread to create the file
@@ -514,7 +451,8 @@ private void createBinauralWAVFileInWorkerThread(final String pFilename)
         @Override
         public Void doInBackground() {
 
-            createBinauralWAVFileHelper(pFilename);
+            //do the work here by calling a function
+
             return(null);
 
         }//end of doInBackground
@@ -559,378 +497,18 @@ private void createBinauralWAVFileInWorkerThread(final String pFilename)
     };//end of class SwingWorker
     //----------------------------------------------------------------------
 
-}//end of MainFrame::createBinauralWAVFileInWorkerThread
+}//end of MainFrame::doSomethingInWorkerThread
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::createBinauralWAVFileHelper
-//
-// This method does the actual work of creating the binaural file.
-// The configuration info will be read from pFilename
-// The resulting audio file will be named pFilename but with the extension
-// ".wav".
-//
-// Returns true if no error, returns false on error.
+// MainFrame::doSomething2
 //
 
-private boolean createBinauralWAVFileHelper(String pFilename)
+private void doSomething2()
 {
 
-    //create wavFile object to hold the new audio data
-    String outFilename = switchExtensionToWAV(pFilename);
-    wavFile = new WAVFile(outFilename, tsLog, guiUpdater, progressLabel);
-    wavFile.init();
 
-    //open the configuration file selected by the user
-
-    String fileFormat = Charset.defaultCharset().displayName();
-    IniFile inFile;
-
-    try{
-        tsLog.appendLine("Reading audio configuration file...");
-        inFile = new IniFile(pFilename, fileFormat);
-    }
-    catch(IOException e){
-        tsLog.appendLine("Error -- Could not open configuration file.");
-        return(false);
-    }
-
-    //set various settings read from the configuration file
-
-    int sampleRate = inFile.readInt("General", "samples per second", 44100);
-    tsLog.appendLine("Sample Rate: " + sampleRate);
-    int sampleValueRange = inFile.readInt("General",
-                "sample value range (1 = signed word, 2 = unsigned byte)", 1);
-    tsLog.appendLine("SampleValueRange: "
-            + (sampleValueRange == 1 ? "signed word" : "unsigned byte"));
-
-    wavFile.setAudioParameters(sampleRate, sampleValueRange, 0x0001);
-
-    if (!calculateTotalSampleSize(inFile)){
-        tsLog.appendLine(errorMessage);
-        return(false);
-    }
-
-    guiUpdater.addUpdate(
-             progressLabel, blackSmallFont,"" + wavFile.getTotalSampleSize());
-
-    //create and prepare the WAV file for data
-    if(!wavFile.startFileSave()) {return(false);}
-
-    if (!createAudio(inFile)){
-        tsLog.appendLine(errorMessage);
-        return(false);
-    }
-
-    //finish up and close the audio file
-    wavFile.endFileSave();
-
-    return(true);
-
-}//end of MainFrame::createBinauralWAVFileHelper
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::calculateTotalSampleSize
-//
-// Sums the time durations in seconds for each section in the configuration
-// file and multiplies the total by the sample rate (samples per second) to
-// get the total number of samples to be generated.
-//
-// When the first section is reached for which the time duration is not set,
-// which could be due to the section being non-existent or the duration being
-// set blank, that section and all subsequently numbered sections are ignored.
-// Thus the user can easily truncate the section list by setting any one of
-// them to have a blank time duration.
-//
-// Sets the total sample size value in the wavFile.
-//
-// Returns true if no error, returns false on error.
-//
-
-private boolean calculateTotalSampleSize(IniFile pInFile)
-{
-
-    int timeDuration;
-    int totalTimeDuration = 0;
-    int sectionIndex = 1;
-    String section;
-
-    //add up all the time durations in the sections until the first one reached
-    //which has an unset time duration
-
-    while(true){
-
-        section = "section " + sectionIndex++;
-
-        timeDuration =
-                pInFile.readInt(section, "time duration in seconds", -1);
-
-        //stop when the first unset time duration is encountered
-        if(timeDuration == -1) {break;}
-
-        tsLog.appendLine(section + " time duration: " + timeDuration);
-
-        totalTimeDuration += timeDuration;
-
-    }
-
-    //limit total time for the audio to 10 hours
-    if (totalTimeDuration < 0 || totalTimeDuration > 36000){
-        errorMessage =
-                  "Total time duration cannot exceed 10 hours (36000 seconds)";
-        return(false);
-    }
-
-    tsLog.appendLine("Total Time Duration: " + totalTimeDuration);
-
-    //calculate the total number of samples required for the audio
-    long numberOfSamples = wavFile.getSampleRate() * totalTimeDuration;
-
-    //limit to 10 hours at 44100 samples per second
-    if (numberOfSamples > 1587600000){
-        errorMessage =
-            "Total number of samples cannot exceed 44100 samples per second"
-             + "over 10 hours (36000 seconds)";
-        return(false);
-    }
-
-    tsLog.appendLine("Total Number of Samples for Each Channel: "
-                                                          + numberOfSamples);
-
-    //initialize the channels
-    wavFile.initChannels((int)numberOfSamples);
-
-    return(true);
-
-}//end of MainFrame::calculateTotalSampleSize
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::createAudio
-//
-// Creates the audio segment by combining sections specified in the
-// configuration file.
-//
-// When the first section is reached for which the time duration is not set,
-// which could be due to the section being non-existent or the duration being
-// set blank, that section and all subsequently numbered sections are ignored.
-// Thus the user can easily truncate the section list by setting any one of
-// them to have a blank time duration.
-//
-// Returns true if no error, returns false on error.
-//
-
-private boolean createAudio(IniFile pInFile)
-{
-
-    int leftStartingFrequency, leftEndingFrequency, leftAmplitude;
-    int rightStartingFrequency, rightEndingFrequency, rightAmplitude;
-    int timeDuration;
-    int sectionIndex = 1;
-    String section;
-
-    tsLog.appendLine("Creating audio...");
-
-    //process all sections in numerical order until the first one reached
-    //which has an unset time duration
-
-    while(true){
-
-        //read the audio parameters from each section
-
-        section = "section " + sectionIndex++;
-
-        leftStartingFrequency =
-             pInFile.readInt(section, "left channel starting frequency Hz", 1);
-        leftEndingFrequency =
-             pInFile.readInt(section, "left channel ending frequency Hz", 1);
-        leftAmplitude =
-             pInFile.readInt(section, "left channel amplitude", 10000);
-
-        rightStartingFrequency =
-             pInFile.readInt(section, "right channel starting frequency Hz", 1);
-        rightEndingFrequency =
-             pInFile.readInt(section, "right channel ending frequency Hz", 1);
-        rightAmplitude =
-             pInFile.readInt(section, "right channel amplitude", 10000);
-
-        timeDuration =
-                pInFile.readInt(section, "time duration in seconds", -1);
-
-        //stop when the first unset time duration is encountered
-        if(timeDuration == -1) {break;}
-
-        //create the audio signals
-
-        tsLog.appendLine("---- processing " + section + "...");
-
-        if (!wavFile.createAudioSection(
-            leftStartingFrequency, leftEndingFrequency, leftAmplitude,
-            rightStartingFrequency, rightEndingFrequency, rightAmplitude,
-            timeDuration, false)){
-
-            errorMessage = "Error creating the file.";
-            return(false);
-
-        }
-
-        //display configuration info about each channel
-
-        logChannelInfo("--- Left Channel", WAVFile.LEFT,
-                    leftStartingFrequency, leftEndingFrequency, leftAmplitude);
-
-        logChannelInfo("--- Right Channel", WAVFile.RIGHT,
-                 rightStartingFrequency, rightEndingFrequency, rightAmplitude);
-
-    }
-
-    tsLog.appendLine("-------------------------------------------------------");
-    tsLog.appendLine("");
-
-    return(true);
-
-}//end of MainFrame::createAudio
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::logChannelInfo
-//
-// Displays information about pWhichChannel (WAVFile.LEFT or WAVFile.RIGHT) in
-// the log window.
-//
-
-private void logChannelInfo(String pDescription, int pWhichChannel,
-                   int pStartingFrequency, int pEndingFrequency, int pAmplitude)
-{
-
-    tsLog.appendLine(pDescription);
-
-    tsLog.appendLine("beginning frequency: " + pStartingFrequency + "...");
-    tsLog.appendLine("ending frequency: " + pEndingFrequency + "...");
-
-    //as the frequency is ramped from beginning to ending values, a
-    //rounding error is introduced -- display the actual ending frequency
-    tsLog.appendLine("actual ending frequency (with rounding error): "
-                             + wavFile.getFrequency(pWhichChannel) + "...");
-    tsLog.appendLine("amplitude: " + pAmplitude + "...");
-
-}//end of MainFrame::logChannelInfo
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::switchExtensionToWAV
-//
-// Returns a filename identical to pFilename but with the extension ".wav".
-//
-
-private String switchExtensionToWAV(String pFilename)
-{
-
-    //get position of dot separator for filename extension
-    int dot = pFilename.lastIndexOf('.');
-
-    //if extension found, then extract everything up to the dot, else just
-    //use the entire name
-
-    String result;
-
-    if (dot != -1) {
-        result = pFilename.substring(0, dot);
-    }
-    else {
-        result = pFilename;
-    }
-
-    //add the new extension
-    result = result + ".wav";
-
-    return(result);
-
-}//end of MainFrame::switchExtensionToWAV
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::sendGetRequest
-//
-// Sends an HTTP GET request to a url
-//
-// @param endpoint - The URL of the server.
-// @param requestParameters - all the request parameters
-//  (Example: "param1=val1&param2=val2").
-// Note: This method will add the question mark (?) to the request -
-//      DO NOT add it yourself
-// @return - The response from the end point
-//
-
-public String sendGetRequest(String pNetURL, String pRequestParameters)
-{
-
-    String result = "";
-
-    URL url;
-
-    try{
-
-        url = new URL(pNetURL);
-
-        Object o = ( url.getContent() );
-
-        //get the response
-        BufferedReader rd = new BufferedReader(
-                            new InputStreamReader((InputStream)o));
-
-        StringBuilder sb = new StringBuilder();
-        String line;
-
-        while ((line = rd.readLine()) != null){
-            sb.append(line);
-        }
-
-        rd.close();
-        result = sb.toString();
-
-    }
-    catch(MalformedURLException me){
-
-    }//catch
-    catch (IOException e){
-
-    }//catch
-
-    return(result);
-
-}//end of MainFrame::sendGetRequest
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::getXMLValueForKey
-//
-// Reads the value associated with pKey from the class member String
-//    temperatureMonitorXMLPage.
-//
-// If the key is not found, the default value is returned.
-//
-// Example format for key/value pairs: <units>F</units>.
-//
-
-public String getXMLValueForKey(String pKey, String pDefault)
-{
-
-    //find start of opening key
-    int start = XMLPageFromRemote.indexOf("<" + pKey + ">");
-    if (start == -1) {return(pDefault);} //key not found, return
-    //find closing bracket of opening key -- value is text after that
-    start = XMLPageFromRemote.indexOf(">", start);
-    if (start == -1) {return(pDefault);} //closing bracket not found, return
-
-    int end = XMLPageFromRemote.indexOf("</" + pKey + ">", start);
-    if (end == -1) {return(pDefault);} //if closing key not found, return
-
-    //return the value between the opening and closing key delimiters
-    return(XMLPageFromRemote.substring(start + 1, end));
-
-}//end of MainFrame::getXMLValueForKey
+}//end of MainFrame::doSomething2
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

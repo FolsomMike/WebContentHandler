@@ -36,8 +36,10 @@ public class MainMenu extends JMenuBar{
     ActionListener actionListener;
 
     JMenu fileMenu;
-    JMenuItem createBinauralMenuItem;
-    JMenuItem viewWAVFileMenuItem;
+    JMenuItem newFile;
+    JMenuItem openFile;
+    JMenuItem saveFile;
+    JMenuItem saveFileAs;
 
     JMenu helpMenu;
     JMenuItem logMenuItem, aboutMenuItem, helpMenuItem, exitMenuItem;
@@ -59,21 +61,21 @@ public MainMenu(Options pOptions, ActionListener pActionListener)
     fileMenu.setToolTipText("File");
     add(fileMenu);
 
-    //File/Create Binaural Audio File menu item
-    createBinauralMenuItem = new JMenuItem("Create Binaural WAV Audio File");
-    createBinauralMenuItem.setMnemonic(KeyEvent.VK_B);
-    createBinauralMenuItem.setToolTipText("Create Binaural WAV Audio File");
-    createBinauralMenuItem.setActionCommand("Create Binaural WAV Audio File");
-    createBinauralMenuItem.addActionListener(actionListener);
-    fileMenu.add(createBinauralMenuItem);
+    //File/New
+    newFile = new JMenuItem("New File");
+    newFile.setMnemonic(KeyEvent.VK_N);
+    newFile.setToolTipText("Create a new blank file.");
+    newFile.setActionCommand("New File");
+    newFile.addActionListener(actionListener);
+    fileMenu.add(newFile);
 
-    //File/View WAV Audio File menu item
-    viewWAVFileMenuItem = new JMenuItem("View WAV Audio File");
-    viewWAVFileMenuItem.setMnemonic(KeyEvent.VK_W);
-    viewWAVFileMenuItem.setToolTipText("View WAV Audio File");
-    viewWAVFileMenuItem.setActionCommand("View WAV Audio File");
-    viewWAVFileMenuItem.addActionListener(actionListener);
-    fileMenu.add(viewWAVFileMenuItem);
+    //File/Open
+    openFile = new JMenuItem("Open File");
+    openFile.setMnemonic(KeyEvent.VK_O);
+    openFile.setToolTipText("Open an existing file");
+    openFile.setActionCommand("Open File");
+    openFile.addActionListener(actionListener);
+    fileMenu.add(openFile);
 
     //File/Exit menu item
     exitMenuItem = new JMenuItem("Exit");

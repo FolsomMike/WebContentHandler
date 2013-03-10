@@ -63,7 +63,7 @@ public void init()
 {
 
     //create the program's main window
-    mainFrame = new MainFrame("Brain Feed");
+    mainFrame = new MainFrame("Needs a Title");
     mainFrame.init();
 
 }//end of MainWindow::init
