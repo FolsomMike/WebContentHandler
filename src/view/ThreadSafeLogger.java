@@ -30,8 +30,9 @@
 
 //-----------------------------------------------------------------------------
 
-package webcontenthandler;
+package view;
 
+import view.Log;
 import java.io.*;
 import java.util.Date;
 import javax.swing.*;

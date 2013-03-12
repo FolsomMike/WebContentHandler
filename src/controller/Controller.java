@@ -1,15 +1,30 @@
 /******************************************************************************
-* Title: MainFrame.java
+* Title: Controller.java
 * Author: Mike Schoonover
 * Date: 11/15/12
 *
 * Purpose:
 *
-* This class creates the canvas where the world is drawn and handles all the
-* action.
+* This class is the Controller in a Model-View-Controller architecture.
+* It creates the Model and the View.
+* It tells the View to update its display of the data in the model.
+* It handles user input from the View (button pushes, etc.)*
+* It tells the Model what to do with its data based on these inputs and tells
+*   the View when to update or change the way it is displaying the data.
 *
-* Communications with networked modules occurs in a separate thread so that
-* the display components don't freeze during lengthy network transactions.
+* In this implementation:
+*   the Model knows only about itself
+*   the View knows only about the Model and can get data from it
+*   the Controller about the Model and the View and interacts with both
+*
+* In this specific MVC implementation, the Model does not send messages to
+* the View -- it expects the Controller to trigger the View to request data
+* from the Model when necessary.
+*
+* The View does send messages to the Controller indirectly as the screen GUI
+* components such as buttons send action messages to an ActionListener -- in
+* this case the Controller is designated as the ActionListener for all GUI
+* components.
 *
 * Open Source Policy:
 *
@@ -52,56 +67,40 @@
 
 //-----------------------------------------------------------------------------
 
-package webcontenthandler;
+package controller;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.awt.font.TextAttribute;
 import java.text.DecimalFormat;
-import java.util.*;
 import javax.swing.*;
+import model.Options;
+import view.View;
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-// class MainFrame
+// class Controller
 //
 
-class MainFrame extends JFrame implements WindowListener, ActionListener,
-                                                                    Runnable {
+public class Controller implements WindowListener, ActionListener, Runnable
+{
 
-    JPanel mainPanel;
+    View view;
 
     Options options;
 
-    MainMenu mainMenu;
-
-    GuiUpdater guiUpdater;
-
     javax.swing.Timer mainTimer;
-
-    Font blackSmallFont, redSmallFont;
-
-    Font redLargeFont, greenLargeFont, yellowLargeFont, blackLargeFont;
-
-    JLabel statusLabel, infoLabel;
 
     Boolean blinkStatusLabel = false;
 
     String errorMessage;
 
-    Log log;
-    ThreadSafeLogger tsLog;
-    Help help;
-    About about;
-
     SwingWorker workerThread;
 
     DecimalFormat decimalFormat1 = new DecimalFormat("#.0");
 
-    JLabel progressLabel;
     Font tSafeFont;
     String tSafeText;
 
@@ -116,19 +115,17 @@ class MainFrame extends JFrame implements WindowListener, ActionListener,
     static private final String newline = "\n";
 
 //-----------------------------------------------------------------------------
-// MainFrame::MainFrame (constructor)
+// Controller::Controller (constructor)
 //
 
-public MainFrame(String pTitle)
+public Controller()
 {
 
-    super(pTitle);
-
-}//end of MainFrame::MainFrame (constructor)
+}//end of Controller::Controller (constructor)
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::init
+// Controller::init
 //
 // Initializes the object.  Must be called immediately after instantiation.
 //
@@ -136,86 +133,22 @@ public MainFrame(String pTitle)
 public void init()
 {
 
-    setupMainFrame();
+    view = new View(this, this);
+    view.init();
 
     //create and load the program options
     options = new Options();
-
-    //create a window for displaying messages and an object to handle updating
-    //it in threadsafe manner
-    log = new Log(this); log.setLocation(230, 0);
-
-    tsLog = new ThreadSafeLogger(log.textArea);
-
-    //add a menu to the main form, passing this as the action listener
-    setJMenuBar(mainMenu = new MainMenu(options, this));
-
-    //create an object to handle thread safe updates of GUI components
-    guiUpdater = new GuiUpdater(this);
-    guiUpdater.init();
-
-    //create various fonts for use by the program
-    createFonts();
-
-    //create user interface: buttons, displays, etc.
-    setupGui();
-
-    //arrange all the GUI items
-    pack();
-
-    //display the main frame
-    setVisible(true);
-
-    tsLog.appendLine("Hello"); tsLog.appendLine("");
 
     //start the control thread
     new Thread(this).start();
 
     setupAndStartMainTimer();
 
-}// end of MainFrame::init
+}// end of Controller::init
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::setupMainFrame
-//
-// Sets various options and styles for the main frame.
-//
-
-public void setupMainFrame()
-{
-
-    //add a JPanel to the frame to provide a familiar container
-    mainPanel = new JPanel();
-    getContentPane().add(mainPanel);
-
-    //set the min/max/preferred sizes of the panel to set the size of the frame
-    setSizes(mainPanel, 200, 300);
-
-    addWindowListener(this);
-
-    //turn off default bold for Metal look and feel
-    UIManager.put("swing.boldMetal", Boolean.FALSE);
-
-    //force "look and feel" to Java style
-    try {
-        UIManager.setLookAndFeel(
-            UIManager.getCrossPlatformLookAndFeelClassName());
-        }
-    catch (Exception e) {
-        System.out.println("Could not set Look and Feel");
-        }
-
-    setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-    Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-    //    setLocation((int)screenSize.getWidth() - getWidth(), 0);
-
-}// end of MainFrame::setupMainFrame
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::setupAndStartMainTimer
+// Controller::setupAndStartMainTimer
 //
 // Prepares and starts a Java Swing timer.
 //
@@ -228,96 +161,11 @@ public void setupAndStartMainTimer()
     mainTimer.setActionCommand ("Timer");
     mainTimer.start();
 
-}// end of MainFrame::setupAndStartMainTimer
+}// end of Controller::setupAndStartMainTimer
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::createFonts
-//
-// Creates fonts for use by the program.
-//
-
-public void createFonts()
-{
-
-    //create small and large red and green fonts for use with display objects
-    HashMap<TextAttribute, Object> map = new HashMap<TextAttribute, Object>();
-
-    blackSmallFont = new Font("Dialog", Font.PLAIN, 12);
-
-    map.put(TextAttribute.FOREGROUND, Color.RED);
-    redSmallFont = blackSmallFont.deriveFont(map);
-
-    //empty the map to use for creating the large fonts
-    map.clear();
-
-    blackLargeFont = new Font("Dialog", Font.PLAIN, 20);
-
-    map.put(TextAttribute.FOREGROUND, Color.GREEN);
-    greenLargeFont = blackLargeFont.deriveFont(map);
-
-    map.put(TextAttribute.FOREGROUND, Color.RED);
-    redLargeFont = blackLargeFont.deriveFont(map);
-
-    map.put(TextAttribute.FOREGROUND, Color.YELLOW);
-    yellowLargeFont = blackLargeFont.deriveFont(map);
-
-}// end of MainFrame::createFonts
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::setupGUI
-//
-// Sets up the user interface on the mainPanel: buttons, displays, etc.
-//
-
-private void setupGui()
-{
-
-    mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-
-    mainPanel.add(Box.createRigidArea(new Dimension(0,20))); //vertical spacer
-
-    //create a label to display good/warning/bad system status
-    statusLabel = new JLabel("Status");
-    mainPanel.add(statusLabel);
-
-    mainPanel.add(Box.createRigidArea(new Dimension(0,20))); //vertical spacer
-
-    //create a label to display miscellaneous info
-    infoLabel = new JLabel("Info");
-    mainPanel.add(infoLabel);
-
-    mainPanel.add(Box.createRigidArea(new Dimension(0,20))); //vertical spacer
-
-    //add button
-    JButton unused1 = new JButton("Unused 1");
-    unused1.setActionCommand("Unused 1");
-    unused1.addActionListener(this);
-    unused1.setToolTipText("Unused 1.");
-    mainPanel.add(unused1);
-
-    mainPanel.add(Box.createRigidArea(new Dimension(0,10))); //vertical spacer
-
-    //add a button
-    JButton unused2 = new JButton("Unused 2");
-    unused2.setActionCommand("Unused 2");
-    unused2.addActionListener(this);
-    unused2.setToolTipText("Unused 2");
-    mainPanel.add(unused2);
-
-    mainPanel.add(Box.createRigidArea(new Dimension(0,10))); //vertical spacer
-
-    progressLabel = new JLabel("Progress");
-    mainPanel.add(progressLabel);
-
-    mainPanel.add(Box.createRigidArea(new Dimension(0,10))); //vertical spacer
-
-}// end of MainFrame::setupGui
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::actionPerformed
+// Controller::actionPerformed
 //
 // Responds to events.
 //
@@ -340,25 +188,25 @@ public void actionPerformed(ActionEvent e)
         doSomething2();
     }
 
-}//end of MainFrame::actionPerformed
+}//end of Controller::actionPerformed
 //-----------------------------------------------------------------------------
 
 /*
 //-----------------------------------------------------------------------------
-// MainFrame::paintComponent
+// Controller::paintComponent
 //
 
 @Override
 public void paintComponent (Graphics g)
 {
 
-}// end of MainFrame::paintComponent
+}// end of Controller::paintComponent
 //-----------------------------------------------------------------------------
 
 */
 
 //-----------------------------------------------------------------------------
-// MainFrame::doTimerActions
+// Controller::doTimerActions
 //
 // Performs actions driven by the timer.
 //
@@ -369,11 +217,11 @@ public void doTimerActions()
 {
 
 
-}//end of MainFrame::doTimerActions
+}//end of Controller::doTimerActions
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::displayLog
+// Controller::displayLog
 //
 // Displays the log window. It is not released after closing as the information
 // is retained so it can be viewed the next time the window is opened.
@@ -382,13 +230,13 @@ public void doTimerActions()
 private void displayLog()
 {
 
-    log.setVisible(true);
+    view.displayLog();
 
-}//end of MainFrame::displayLog
+}//end of Controller::displayLog
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::displayHelp
+// Controller::displayHelp
 //
 // Displays help information.
 //
@@ -396,14 +244,13 @@ private void displayLog()
 private void displayHelp()
 {
 
-    help = new Help(this);
-    help = null;  //window will be released on close, so point should be null
+    view.displayHelp();
 
-}//end of MainFrame::displayHelp
+}//end of Controller::displayHelp
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::displayAbout
+// Controller::displayAbout
 //
 // Displays about information.
 //
@@ -411,25 +258,24 @@ private void displayHelp()
 private void displayAbout()
 {
 
-    about = new About(this);
-    about = null;  //window will be released on close, so point should be null
+    view.displayAbout();
 
-}//end of MainFrame::displayAbout
+}//end of Controller::displayAbout
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::doSomething1
+// Controller::doSomething1
 //
 
 private void doSomething1()
 {
 
 
-}//end of MainFrame::doSomething1
+}//end of Controller::doSomething1
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::doSomethingInWorkerThread
+// Controller::doSomethingInWorkerThread
 //
 // Does nothing right now -- modify it to call a function which takes a long
 // time to finish. It will be run in a background thread so the GUI is still
@@ -497,22 +343,22 @@ private void doSomethingInWorkerThread()
     };//end of class SwingWorker
     //----------------------------------------------------------------------
 
-}//end of MainFrame::doSomethingInWorkerThread
+}//end of Controller::doSomethingInWorkerThread
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::doSomething2
+// Controller::doSomething2
 //
 
 private void doSomething2()
 {
 
 
-}//end of MainFrame::doSomething2
+}//end of Controller::doSomething2
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::run
+// Controller::run
 //
 // This is the part which runs as a separate thread.  The actions of accessing
 // remote devices occur here.  If they are done in a timer call instead, then
@@ -537,11 +383,11 @@ public void run()
 
     }
 
-}//end of MainFrame::run
+}//end of Controller::run
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::threadSleep
+// Controller::threadSleep
 //
 // Calls the Thread.sleep function. Placed in a function to avoid the
 // "Thread.sleep called in a loop" warning -- yeah, it's cheezy.
@@ -552,11 +398,11 @@ public void threadSleep(int pSleepTime)
 
     try {Thread.sleep(pSleepTime);} catch (InterruptedException e) { }
 
-}//end of MainFrame::threadSleep
+}//end of Controller::threadSleep
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::control
+// Controller::control
 //
 // Performs all display and control.  Call this from a thread.
 //
@@ -578,11 +424,11 @@ public void control()
         System.exit(0);
     }
 
-}//end of MainFrame::control
+}//end of Controller::control
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::displayErrorMessage
+// Controller::displayErrorMessage
 //
 // Displays an error dialog with message pMessage.
 //
@@ -590,14 +436,13 @@ public void control()
 public void displayErrorMessage(String pMessage)
 {
 
-    JOptionPane.showMessageDialog(this, pMessage,
-                                            "Error", JOptionPane.ERROR_MESSAGE);
+    view.displayErrorMessage(pMessage);
 
-}//end of MainFrame::displayErrorMessage
+}//end of Controller::displayErrorMessage
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::shutDown
+// Controller::shutDown
 //
 // Disables chassis power and performs any other appropriate shut down
 // operations.
@@ -611,11 +456,11 @@ public void shutDown()
 
     shutDown = true;
 
-}//end of MainFrame::shutDown
+}//end of Controller::shutDown
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::windowClosing
+// Controller::windowClosing
 //
 // Handles actions necessary when the window is closing
 //
@@ -628,11 +473,11 @@ public void windowClosing(WindowEvent e)
 
     shutDown();
 
-}//end of MainFrame::windowClosing
+}//end of Controller::windowClosing
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// MainFrame::(various window listener functions)
+// Controller::(various window listener functions)
 //
 // These functions are implemented per requirements of interface WindowListener
 // but do nothing at the present time.  As code is added to each function, it
@@ -654,26 +499,10 @@ public void windowIconified(WindowEvent e){}
 @Override
 public void windowDeiconified(WindowEvent e){}
 
-//end of MainFrame::(various window listener functions)
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// MainFrame::setSizes
-//
-// Sets the min, max, and preferred sizes of pComponent to pWidth and pHeight.
-//
-
-static void setSizes(Component pComponent, int pWidth, int pHeight)
-{
-
-    pComponent.setMinimumSize(new Dimension(pWidth, pHeight));
-    pComponent.setPreferredSize(new Dimension(pWidth, pHeight));
-    pComponent.setMaximumSize(new Dimension(pWidth, pHeight));
-
-}//end of MainFrame::setSizes
+//end of Controller::(various window listener functions)
 //-----------------------------------------------------------------------------
 
 
-}//end of class MainFrame
+}//end of class Controller
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------

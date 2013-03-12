@@ -18,7 +18,7 @@
 
 //-----------------------------------------------------------------------------
 
-package webcontenthandler;
+package model;
 
 import java.awt.Color;
 import java.io.*;

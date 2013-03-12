@@ -18,7 +18,7 @@
 
 //-----------------------------------------------------------------------------
 
-package webcontenthandler;
+package view;
 
 import java.awt.*;
 import java.io.FileWriter;

@@ -17,7 +17,7 @@
 
 //-----------------------------------------------------------------------------
 
-package webcontenthandler;
+package view;
 
 import java.awt.event.*;
 import javax.swing.*;
@@ -30,8 +30,6 @@ import javax.swing.*;
 //
 
 public class MainMenu extends JMenuBar{
-
-    Options options;
 
     ActionListener actionListener;
 
@@ -50,10 +48,10 @@ public class MainMenu extends JMenuBar{
 
 String language;
 
-public MainMenu(Options pOptions, ActionListener pActionListener)
+public MainMenu(ActionListener pActionListener)
 {
 
-    options = pOptions; actionListener = pActionListener;
+    actionListener = pActionListener;
 
     //File menu
     fileMenu = new JMenu("File");

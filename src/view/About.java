@@ -16,8 +16,9 @@
 
 //-----------------------------------------------------------------------------
 
-package webcontenthandler;
+package view;
 
+import model.Options;
 import java.awt.*;
 import javax.swing.*;
 
